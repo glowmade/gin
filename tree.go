@@ -85,14 +85,15 @@ const (
 )
 
 type node struct {
-	path      string
-	wildChild bool
-	nType     nodeType
-	maxParams uint8
-	indices   string
-	children  []*node
-	handlers  HandlersChain
-	priority  uint32
+	resolvedPath string
+	path         string
+	wildChild    bool
+	nType        nodeType
+	maxParams    uint8
+	indices      string
+	children     []*node
+	handlers     HandlersChain
+	priority     uint32
 }
 
 // increments priority of the given child and reorders if necessary
@@ -363,7 +364,7 @@ func (n *node) insertChild(numParams uint8, path string, fullPath string, handle
 // If no handle can be found, a TSR (trailing slash redirect) recommendation is
 // made if a handle exists with an extra (without the) trailing slash for the
 // given path.
-func (n *node) getValue(path string, po Params) (handlers HandlersChain, p Params, tsr bool) {
+func (n *node) getValue(path string, po Params) (handlers HandlersChain, p Params, tsr bool, rpath string) {
 	p = po
 walk: // Outer loop for walking the tree
 	for {
@@ -420,6 +421,7 @@ walk: // Outer loop for walking the tree
 						tsr = (len(path) == end+1)
 						return
 					}
+					rpath = n.resolvedPath
 
 					if handlers = n.handlers; handlers != nil {
 						return
@@ -443,6 +445,7 @@ walk: // Outer loop for walking the tree
 					p[i].Value = path
 
 					handlers = n.handlers
+					rpath = n.resolvedPath
 					return
 
 				default:
@@ -450,6 +453,8 @@ walk: // Outer loop for walking the tree
 				}
 			}
 		} else if path == n.path {
+
+			rpath = n.resolvedPath
 			// We should have reached the node containing the handle.
 			// Check if this node has a handle registered.
 			if handlers = n.handlers; handlers != nil {

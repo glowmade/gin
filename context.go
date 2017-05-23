@@ -42,6 +42,7 @@ type Context struct {
 
 	Params   Params
 	handlers HandlersChain
+	Repath   string
 	index    int8
 
 	engine   *Engine

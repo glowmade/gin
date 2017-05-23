@@ -191,6 +191,22 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 	root.addRoute(path, handlers)
 }
 
+func (engine *Engine) BakePaths() {
+	for _, tree := range engine.trees {
+		bakePath("", tree.method, tree.root)
+	}
+}
+
+func bakePath(path, method string, root *node) {
+	path += root.path
+	if len(root.handlers) > 0 {
+		root.resolvedPath = path
+	}
+	for _, child := range root.children {
+		bakePath(path, method, child)
+	}
+}
+
 // Routes returns a slice of registered routes, including some useful information, such as:
 // the http method, path and the handler name.
 func (engine *Engine) Routes() (routes RoutesInfo) {
@@ -277,8 +293,9 @@ func (engine *Engine) handleHTTPRequest(context *Context) {
 		if t[i].method == httpMethod {
 			root := t[i].root
 			// Find route in tree
-			handlers, params, tsr := root.getValue(path, context.Params)
+			handlers, params, tsr, rp := root.getValue(path, context.Params)
 			if handlers != nil {
+				context.Repath = rp
 				context.handlers = handlers
 				context.Params = params
 				context.Next()
@@ -302,7 +319,7 @@ func (engine *Engine) handleHTTPRequest(context *Context) {
 	if engine.HandleMethodNotAllowed {
 		for _, tree := range engine.trees {
 			if tree.method != httpMethod {
-				if handlers, _, _ := tree.root.getValue(path, nil); handlers != nil {
+				if handlers, _, _, _ := tree.root.getValue(path, nil); handlers != nil {
 					context.handlers = engine.allNoMethod
 					serveError(context, 405, default405Body)
 					return
