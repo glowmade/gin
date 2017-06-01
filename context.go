@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/gin-gonic/gin/render"
 	"github.com/manucorporat/sse"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
 
@@ -42,7 +43,9 @@ type Context struct {
 
 	Params   Params
 	handlers HandlersChain
-	Repath   string
+	Repath   string      // GLOWMADE | HDD Repath is created by path baking, holds original path match string eg. "v1/:userID/public"
+	ZLog     *zap.Logger // GLOWMADE | HDD added a context-local logger instance that will have appropriate user identifiers baked in
+	UDI      interface{} // GLOWMADE | HDD generic holder for user data to avoid having to hit a Keys map
 	index    int8
 
 	engine   *Engine
