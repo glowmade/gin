@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/gin-gonic/gin",
+	"ImportPath": "github.com/glowmade/gin",
 	"GoVersion": "go1.5.1",
 	"Deps": [
 		{

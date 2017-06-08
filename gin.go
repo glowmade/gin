@@ -11,7 +11,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/gin-gonic/gin/render"
+	"github.com/glowmade/gin/render"
 )
 
 // Version is Framework's version
@@ -177,18 +177,18 @@ func (engine *Engine) rebuild405Handlers() {
 	engine.allNoMethod = engine.combineHandlers(engine.noMethod)
 }
 
-func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
+func (engine *Engine) addRoute(rld *RouteRate, method, path string, handlers HandlersChain) {
 	assert1(path[0] == '/', "path must begin with '/'")
 	assert1(len(method) > 0, "HTTP method can not be empty")
 	assert1(len(handlers) > 0, "there must be at least one handler")
 
-	debugPrintRoute(method, path, handlers)
+	debugPrintRoute(method, path, handlers, rld)
 	root := engine.trees.get(method)
 	if root == nil {
 		root = new(node)
 		engine.trees = append(engine.trees, methodTree{method: method, root: root})
 	}
-	root.addRoute(path, handlers)
+	root.addRoute(path, handlers, rld)
 }
 
 func (engine *Engine) BakePaths() {
@@ -293,9 +293,10 @@ func (engine *Engine) handleHTTPRequest(context *Context) {
 		if t[i].method == httpMethod {
 			root := t[i].root
 			// Find route in tree
-			handlers, params, tsr, rp := root.getValue(path, context.Params)
+			handlers, params, tsr, rp, rld := root.getValue(path, context.Params)
 			if handlers != nil {
 				context.Repath = rp
+				context.Rate = rld
 				context.handlers = handlers
 				context.Params = params
 				context.Next()
@@ -319,7 +320,7 @@ func (engine *Engine) handleHTTPRequest(context *Context) {
 	if engine.HandleMethodNotAllowed {
 		for _, tree := range engine.trees {
 			if tree.method != httpMethod {
-				if handlers, _, _, _ := tree.root.getValue(path, nil); handlers != nil {
+				if handlers, _, _, _, _ := tree.root.getValue(path, nil); handlers != nil {
 					context.handlers = engine.allNoMethod
 					serveError(context, 405, default405Body)
 					return

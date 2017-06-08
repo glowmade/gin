@@ -12,6 +12,17 @@ import (
 )
 
 type (
+	RateLimitBlueprint struct {
+		Tag    string
+		Burst  int32
+		Count  int32
+		Period int32
+	}
+	RouteRate struct {
+		Bp   *RateLimitBlueprint
+		Cost int32
+	}
+
 	IRouter interface {
 		IRoutes
 		Group(string, ...HandlerFunc) *RouterGroup
@@ -20,19 +31,19 @@ type (
 	IRoutes interface {
 		Use(...HandlerFunc) IRoutes
 
-		Handle(string, string, ...HandlerFunc) IRoutes
-		Any(string, ...HandlerFunc) IRoutes
-		GET(string, ...HandlerFunc) IRoutes
-		POST(string, ...HandlerFunc) IRoutes
-		DELETE(string, ...HandlerFunc) IRoutes
-		PATCH(string, ...HandlerFunc) IRoutes
-		PUT(string, ...HandlerFunc) IRoutes
-		OPTIONS(string, ...HandlerFunc) IRoutes
-		HEAD(string, ...HandlerFunc) IRoutes
+		Handle(*RouteRate, string, string, ...HandlerFunc) IRoutes
+		Any(*RouteRate, string, ...HandlerFunc) IRoutes
+		GET(*RouteRate, string, ...HandlerFunc) IRoutes
+		POST(*RouteRate, string, ...HandlerFunc) IRoutes
+		DELETE(*RouteRate, string, ...HandlerFunc) IRoutes
+		PATCH(*RouteRate, string, ...HandlerFunc) IRoutes
+		PUT(*RouteRate, string, ...HandlerFunc) IRoutes
+		OPTIONS(*RouteRate, string, ...HandlerFunc) IRoutes
+		HEAD(*RouteRate, string, ...HandlerFunc) IRoutes
 
-		StaticFile(string, string) IRoutes
-		Static(string, string) IRoutes
-		StaticFS(string, http.FileSystem) IRoutes
+		StaticFile(*RouteRate, string, string) IRoutes
+		Static(*RouteRate, string, string) IRoutes
+		StaticFS(*RouteRate, string, http.FileSystem) IRoutes
 	}
 
 	// RouterGroup is used internally to configure router, a RouterGroup is associated with a prefix
@@ -67,10 +78,10 @@ func (group *RouterGroup) BasePath() string {
 	return group.basePath
 }
 
-func (group *RouterGroup) handle(httpMethod, relativePath string, handlers HandlersChain) IRoutes {
+func (group *RouterGroup) handle(rld *RouteRate, httpMethod, relativePath string, handlers HandlersChain) IRoutes {
 	absolutePath := group.calculateAbsolutePath(relativePath)
 	handlers = group.combineHandlers(handlers)
-	group.engine.addRoute(httpMethod, absolutePath, handlers)
+	group.engine.addRoute(rld, httpMethod, absolutePath, handlers)
 	return group.returnObj()
 }
 
@@ -84,74 +95,74 @@ func (group *RouterGroup) handle(httpMethod, relativePath string, handlers Handl
 // This function is intended for bulk loading and to allow the usage of less
 // frequently used, non-standardized or custom methods (e.g. for internal
 // communication with a proxy).
-func (group *RouterGroup) Handle(httpMethod, relativePath string, handlers ...HandlerFunc) IRoutes {
+func (group *RouterGroup) Handle(rld *RouteRate, httpMethod, relativePath string, handlers ...HandlerFunc) IRoutes {
 	if matches, err := regexp.MatchString("^[A-Z]+$", httpMethod); !matches || err != nil {
 		panic("http method " + httpMethod + " is not valid")
 	}
-	return group.handle(httpMethod, relativePath, handlers)
+	return group.handle(rld, httpMethod, relativePath, handlers)
 }
 
 // POST is a shortcut for router.Handle("POST", path, handle)
-func (group *RouterGroup) POST(relativePath string, handlers ...HandlerFunc) IRoutes {
-	return group.handle("POST", relativePath, handlers)
+func (group *RouterGroup) POST(rld *RouteRate, relativePath string, handlers ...HandlerFunc) IRoutes {
+	return group.handle(rld, "POST", relativePath, handlers)
 }
 
 // GET is a shortcut for router.Handle("GET", path, handle)
-func (group *RouterGroup) GET(relativePath string, handlers ...HandlerFunc) IRoutes {
-	return group.handle("GET", relativePath, handlers)
+func (group *RouterGroup) GET(rld *RouteRate, relativePath string, handlers ...HandlerFunc) IRoutes {
+	return group.handle(rld, "GET", relativePath, handlers)
 }
 
 // DELETE is a shortcut for router.Handle("DELETE", path, handle)
-func (group *RouterGroup) DELETE(relativePath string, handlers ...HandlerFunc) IRoutes {
-	return group.handle("DELETE", relativePath, handlers)
+func (group *RouterGroup) DELETE(rld *RouteRate, relativePath string, handlers ...HandlerFunc) IRoutes {
+	return group.handle(rld, "DELETE", relativePath, handlers)
 }
 
 // PATCH is a shortcut for router.Handle("PATCH", path, handle)
-func (group *RouterGroup) PATCH(relativePath string, handlers ...HandlerFunc) IRoutes {
-	return group.handle("PATCH", relativePath, handlers)
+func (group *RouterGroup) PATCH(rld *RouteRate, relativePath string, handlers ...HandlerFunc) IRoutes {
+	return group.handle(rld, "PATCH", relativePath, handlers)
 }
 
 // PUT is a shortcut for router.Handle("PUT", path, handle)
-func (group *RouterGroup) PUT(relativePath string, handlers ...HandlerFunc) IRoutes {
-	return group.handle("PUT", relativePath, handlers)
+func (group *RouterGroup) PUT(rld *RouteRate, relativePath string, handlers ...HandlerFunc) IRoutes {
+	return group.handle(rld, "PUT", relativePath, handlers)
 }
 
 // OPTIONS is a shortcut for router.Handle("OPTIONS", path, handle)
-func (group *RouterGroup) OPTIONS(relativePath string, handlers ...HandlerFunc) IRoutes {
-	return group.handle("OPTIONS", relativePath, handlers)
+func (group *RouterGroup) OPTIONS(rld *RouteRate, relativePath string, handlers ...HandlerFunc) IRoutes {
+	return group.handle(rld, "OPTIONS", relativePath, handlers)
 }
 
 // HEAD is a shortcut for router.Handle("HEAD", path, handle)
-func (group *RouterGroup) HEAD(relativePath string, handlers ...HandlerFunc) IRoutes {
-	return group.handle("HEAD", relativePath, handlers)
+func (group *RouterGroup) HEAD(rld *RouteRate, relativePath string, handlers ...HandlerFunc) IRoutes {
+	return group.handle(rld, "HEAD", relativePath, handlers)
 }
 
 // Any registers a route that matches all the HTTP methods.
 // GET, POST, PUT, PATCH, HEAD, OPTIONS, DELETE, CONNECT, TRACE
-func (group *RouterGroup) Any(relativePath string, handlers ...HandlerFunc) IRoutes {
-	group.handle("GET", relativePath, handlers)
-	group.handle("POST", relativePath, handlers)
-	group.handle("PUT", relativePath, handlers)
-	group.handle("PATCH", relativePath, handlers)
-	group.handle("HEAD", relativePath, handlers)
-	group.handle("OPTIONS", relativePath, handlers)
-	group.handle("DELETE", relativePath, handlers)
-	group.handle("CONNECT", relativePath, handlers)
-	group.handle("TRACE", relativePath, handlers)
+func (group *RouterGroup) Any(rld *RouteRate, relativePath string, handlers ...HandlerFunc) IRoutes {
+	group.handle(rld, "GET", relativePath, handlers)
+	group.handle(rld, "POST", relativePath, handlers)
+	group.handle(rld, "PUT", relativePath, handlers)
+	group.handle(rld, "PATCH", relativePath, handlers)
+	group.handle(rld, "HEAD", relativePath, handlers)
+	group.handle(rld, "OPTIONS", relativePath, handlers)
+	group.handle(rld, "DELETE", relativePath, handlers)
+	group.handle(rld, "CONNECT", relativePath, handlers)
+	group.handle(rld, "TRACE", relativePath, handlers)
 	return group.returnObj()
 }
 
 // StaticFile registers a single route in order to server a single file of the local filesystem.
 // router.StaticFile("favicon.ico", "./resources/favicon.ico")
-func (group *RouterGroup) StaticFile(relativePath, filepath string) IRoutes {
+func (group *RouterGroup) StaticFile(rld *RouteRate, relativePath, filepath string) IRoutes {
 	if strings.Contains(relativePath, ":") || strings.Contains(relativePath, "*") {
 		panic("URL parameters can not be used when serving a static file")
 	}
 	handler := func(c *Context) {
 		c.File(filepath)
 	}
-	group.GET(relativePath, handler)
-	group.HEAD(relativePath, handler)
+	group.GET(rld, relativePath, handler)
+	group.HEAD(rld, relativePath, handler)
 	return group.returnObj()
 }
 
@@ -161,13 +172,13 @@ func (group *RouterGroup) StaticFile(relativePath, filepath string) IRoutes {
 // To use the operating system's file system implementation,
 // use :
 //     router.Static("/static", "/var/www")
-func (group *RouterGroup) Static(relativePath, root string) IRoutes {
-	return group.StaticFS(relativePath, Dir(root, false))
+func (group *RouterGroup) Static(rld *RouteRate, relativePath, root string) IRoutes {
+	return group.StaticFS(rld, relativePath, Dir(root, false))
 }
 
 // StaticFS works just like `Static()` but a custom `http.FileSystem` can be used instead.
 // Gin by default user: gin.Dir()
-func (group *RouterGroup) StaticFS(relativePath string, fs http.FileSystem) IRoutes {
+func (group *RouterGroup) StaticFS(rld *RouteRate, relativePath string, fs http.FileSystem) IRoutes {
 	if strings.Contains(relativePath, ":") || strings.Contains(relativePath, "*") {
 		panic("URL parameters can not be used when serving a static folder")
 	}
@@ -175,8 +186,8 @@ func (group *RouterGroup) StaticFS(relativePath string, fs http.FileSystem) IRou
 	urlPattern := path.Join(relativePath, "/*filepath")
 
 	// Register GET and HEAD handlers
-	group.GET(urlPattern, handler)
-	group.HEAD(urlPattern, handler)
+	group.GET(rld, urlPattern, handler)
+	group.HEAD(rld, urlPattern, handler)
 	return group.returnObj()
 }
 

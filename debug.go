@@ -6,6 +6,7 @@ package gin
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"log"
 )
@@ -20,11 +21,17 @@ func IsDebugging() bool {
 	return ginMode == debugCode
 }
 
-func debugPrintRoute(httpMethod, absolutePath string, handlers HandlersChain) {
+func debugPrintRoute(httpMethod, absolutePath string, handlers HandlersChain, rld *RouteRate) {
 	if IsDebugging() {
 		nuHandlers := len(handlers)
 		handlerName := nameOfFunction(handlers.Last())
-		debugPrint("%-6s %-25s --> %s (%d handlers)\n", httpMethod, absolutePath, handlerName, nuHandlers)
+
+		rldDesc := ""
+		if rld != nil {
+			rldDesc = fmt.Sprintf(" %s  %d -> [ %4d / %4d ] ", rld.Bp.Tag, rld.Cost, rld.Bp.Count, rld.Bp.Period)
+		}
+
+		debugPrint("%-6s  | %-26s |  %-34s --> %s (%d handlers)\n", httpMethod, rldDesc, absolutePath, handlerName, nuHandlers)
 	}
 }
 
